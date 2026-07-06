@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Draftech — One Partner. Every Phase.</title>
+<meta name="description" content="Draftech International — end-to-end outside-plant (OSP) telecom engineering. From first survey stake to final as-built.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05060c; --bg2:#080a14; --ink:#eef2ff; --dim:#9aa6c4; --dim2:#6b7699;
+    --cy:#00e5ff; --cy2:#00bcd4; --line:rgba(120,150,210,.14);
+    --glass:rgba(14,20,38,.55);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* studio backdrop behind the transparent canvas */
+  #bg-grad{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 50% 118%, rgba(0,150,190,.20) 0%, rgba(0,90,130,.06) 26%, transparent 55%),
+      radial-gradient(90% 70% at 50% 0%, rgba(30,44,90,.35) 0%, transparent 60%),
+      linear-gradient(180deg,#070912 0%,#05060c 46%,#04050a 100%);
+  }
+  #c{position:fixed; inset:0; z-index:1; width:100vw; height:100vh; display:block;}
+  /* cinematic overlay: vignette + grain */
+  #cine{position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 42%, transparent 52%, rgba(2,3,8,.55) 100%);}
+  /* editorial scrim: darkens the copy side (left+bottom), leaves the model clear on the right */
+  #scrim{position:fixed; inset:0; z-index:3; pointer-events:none;
+    background:
+      linear-gradient(100deg, rgba(4,5,11,.90) 0%, rgba(4,5,11,.55) 24%, rgba(4,5,11,.12) 45%, transparent 62%),
+      linear-gradient(0deg, rgba(4,5,11,.82) 0%, rgba(4,5,11,.20) 20%, transparent 40%);}
+  #grain{position:fixed; inset:-50%; z-index:2; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation:gr 1.2s steps(3) infinite;}
+  @keyframes gr{0%{transform:translate(0,0)}33%{transform:translate(-4%,2%)}66%{transform:translate(3%,-3%)}100%{transform:translate(0,0)}}
+
+  /* ---------------- content layer ---------------- */
+  .layer{position:relative; z-index:5;}
+
+  /* top nav */
+  nav{position:fixed; top:0; left:0; right:0; z-index:20; display:flex; align-items:center;
+    justify-content:space-between; padding:22px clamp(20px,5vw,60px);
+    transition:background .4s ease, backdrop-filter .4s ease, border-color .4s;
+    border-bottom:1px solid transparent;}
+  nav.solid{background:rgba(5,6,12,.72); backdrop-filter:blur(14px); border-bottom:1px solid var(--line);}
+  .brand{display:flex; align-items:center; gap:11px; font-family:'Montserrat'; font-weight:800;
+    letter-spacing:.32em; font-size:15px;}
+  .brand .dot{width:9px; height:9px; border-radius:50%; background:var(--cy);
+    box-shadow:0 0 14px 2px rgba(0,229,255,.8); animation:pulse 2.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.55; transform:scale(.85)}50%{opacity:1; transform:scale(1.15)}}
+  .navlinks{display:flex; gap:34px; font-size:13px; letter-spacing:.06em; color:var(--dim);}
+  .navlinks a{color:inherit; text-decoration:none; transition:color .25s; position:relative;}
+  .navlinks a:hover{color:var(--ink);}
+  .navlinks a::after{content:''; position:absolute; left:0; bottom:-6px; width:0; height:1px; background:var(--cy); transition:width .3s;}
+  .navlinks a:hover::after{width:100%;}
+  @media(max-width:720px){.navlinks{display:none}}
+
+  /* hero */
+  .hero{min-height:100svh; display:flex; flex-direction:column; justify-content:flex-end;
+    padding:0 clamp(20px,5vw,60px) clamp(40px,7vh,70px);}
+  .eyebrow{display:inline-flex; align-items:center; gap:10px; font-family:'Montserrat';
+    font-weight:600; font-size:12px; letter-spacing:.34em; color:var(--cy);
+    text-transform:uppercase; margin-bottom:20px;}
+  .eyebrow::before{content:''; width:34px; height:1px; background:linear-gradient(90deg,var(--cy),transparent);}
+  h1{font-family:'Montserrat'; font-weight:800; line-height:.98;
+    font-size:clamp(46px,8.5vw,124px); letter-spacing:-.02em;
+    background:linear-gradient(180deg,#ffffff 0%,#cdd8f5 60%,#8fa0cf 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 2px 40px rgba(0,0,0,.5);}
+  h1 .accent{background:linear-gradient(180deg,#7ff2ff,#00bcd4);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{max-width:560px; margin-top:24px; color:var(--dim); font-size:clamp(15px,1.6vw,19px);
+    line-height:1.6; font-weight:300;}
+  .cta-row{display:flex; align-items:center; gap:22px; margin-top:38px; flex-wrap:wrap;}
+  .btn{display:inline-flex; align-items:center; gap:12px; padding:15px 30px; border-radius:100px;
+    font-family:'Montserrat'; font-weight:600; font-size:13.5px; letter-spacing:.08em;
+    text-decoration:none; text-transform:uppercase; cursor:pointer; transition:transform .25s, box-shadow .3s;}
+  .btn.primary{background:linear-gradient(100deg,#00e5ff,#00a7c4); color:#021016;
+    box-shadow:0 8px 34px -8px rgba(0,229,255,.6);}
+  .btn.primary:hover{transform:translateY(-2px); box-shadow:0 14px 42px -8px rgba(0,229,255,.75);}
+  .btn.ghost{color:var(--ink); border:1px solid var(--line);}
+  .btn.ghost:hover{border-color:var(--cy); color:#fff;}
+  .btn .arr{transition:transform .25s;} .btn:hover .arr{transform:translateX(4px);}
+
+  .scrollhint{position:absolute; left:50%; bottom:22px; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--dim2);
+    font-size:10.5px; letter-spacing:.28em; text-transform:uppercase;}
+  .mouse{width:22px; height:34px; border:1.5px solid var(--dim2); border-radius:12px; position:relative;}
+  .mouse::after{content:''; position:absolute; left:50%; top:6px; width:3px; height:6px; border-radius:2px;
+    background:var(--cy); transform:translateX(-50%); animation:sc 1.8s ease-in-out infinite;}
+  @keyframes sc{0%{opacity:0;transform:translate(-50%,0)}30%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translate(-50%,12px)}}
+  @media(max-width:720px){.scrollhint{display:none}}
+
+  .drag-tag{position:fixed; right:clamp(20px,5vw,60px); bottom:clamp(40px,7vh,70px); z-index:6;
+    font-size:11px; letter-spacing:.2em; color:var(--dim2); text-transform:uppercase; display:flex; align-items:center; gap:9px;
+    transition:opacity .4s ease;}
+  .drag-tag svg{opacity:.7}
+  @media(max-width:720px){.drag-tag{display:none}}
+
+  /* sections that scroll OVER the fixed canvas */
+  section.panel{position:relative; z-index:5; background:linear-gradient(180deg,rgba(5,6,12,.94),var(--bg) 6%,var(--bg));
+    padding:clamp(80px,12vh,150px) clamp(20px,5vw,60px);}
+  .kicker{font-family:'Montserrat'; font-weight:600; font-size:12px; letter-spacing:.32em; color:var(--cy);
+    text-transform:uppercase; margin-bottom:16px;}
+  .sec-title{font-family:'Montserrat'; font-weight:800; font-size:clamp(30px,4.6vw,58px); line-height:1.02;
+    letter-spacing:-.015em; max-width:16ch;}
+  .sec-lead{max-width:600px; margin-top:22px; color:var(--dim); font-size:clamp(15px,1.5vw,18px); line-height:1.65; font-weight:300;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; margin-top:64px;}
+  .card{position:relative; padding:34px 30px 38px; border-radius:18px; overflow:hidden;
+    background:var(--glass); border:1px solid var(--line); backdrop-filter:blur(10px);
+    opacity:0; transform:translateY(28px); transition:opacity .7s ease, transform .7s ease, border-color .35s;}
+  .card.in{opacity:1; transform:none;}
+  .card:hover{border-color:rgba(0,229,255,.4);}
+  .card::before{content:''; position:absolute; inset:0; background:radial-gradient(90% 60% at 12% 0%,rgba(0,229,255,.10),transparent 60%); opacity:0; transition:opacity .35s;}
+  .card:hover::before{opacity:1;}
+  .card .num{font-family:'Montserrat'; font-weight:800; font-size:13px; letter-spacing:.2em; color:var(--cy); opacity:.85;}
+  .card .ic{width:46px; height:46px; margin:18px 0 20px; display:flex; align-items:center; justify-content:center;
+    border-radius:12px; background:rgba(0,229,255,.08); border:1px solid rgba(0,229,255,.22);}
+  .card .ic svg{width:24px; height:24px; stroke:var(--cy); fill:none; stroke-width:1.6;}
+  .card h3{font-family:'Montserrat'; font-weight:700; font-size:20px; letter-spacing:-.01em; margin-bottom:10px;}
+  .card p{color:var(--dim); font-size:14.5px; line-height:1.6; font-weight:300;}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:24px; margin-top:60px;
+    border-top:1px solid var(--line); padding-top:48px;}
+  .stat .n{font-family:'Montserrat'; font-weight:800; font-size:clamp(34px,4.4vw,52px);
+    background:linear-gradient(180deg,#fff,#79d9ec);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat .l{color:var(--dim); font-size:13px; letter-spacing:.04em; margin-top:6px;}
+
+  .cta-band{position:relative; z-index:5; background:var(--bg); text-align:center;
+    padding:clamp(90px,14vh,160px) 24px; border-top:1px solid var(--line);}
+  .cta-band h2{font-family:'Montserrat'; font-weight:800; font-size:clamp(30px,5vw,64px); line-height:1.02; letter-spacing:-.02em;}
+  .cta-band p{color:var(--dim); margin:20px auto 40px; max-width:520px; font-weight:300; font-size:17px;}
+
+  footer{position:relative; z-index:5; background:#04050a; border-top:1px solid var(--line);
+    padding:40px clamp(20px,5vw,60px); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;}
+  footer .brand{font-size:13px;}
+  footer .fnote{color:var(--dim2); font-size:12px; letter-spacing:.04em;}
+
+  /* loader */
+  #loader{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:26px; transition:opacity .9s ease; }
+  #loader.hide{opacity:0; pointer-events:none;}
+  #loader .lb{font-family:'Montserrat'; font-weight:800; letter-spacing:.4em; font-size:16px;}
+  #loader .lb .dot{color:var(--cy);}
+  .bar{width:220px; height:2px; background:rgba(255,255,255,.09); border-radius:2px; overflow:hidden;}
+  .bar i{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--cy2),var(--cy)); box-shadow:0 0 12px var(--cy); transition:width .3s;}
+  #loader .pct{font-size:11px; letter-spacing:.28em; color:var(--dim2);}
+  .reveal{opacity:0; transform:translateY(24px); transition:opacity 1s ease, transform 1s ease;}
+  .reveal.in{opacity:1; transform:none;}
+</style>
+</head>
+<body>
+  <div id="bg-grad"></div>
+  <canvas id="c"></canvas>
+  <div id="cine"></div>
+  <div id="scrim"></div>
+  <div id="grain"></div>
+
+  <div class="layer">
+    <nav id="nav">
+      <div class="brand"><span class="dot"></span>DRAFTECH</div>
+      <div class="navlinks">
+        <a href="#services">Services</a>
+        <a href="#approach">Approach</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="reveal" id="h-eye"><span class="eyebrow">Outside-Plant Engineering</span></div>
+      <h1 class="reveal" id="h-title">One Partner.<br><span class="accent">Every&nbsp;Phase.</span></h1>
+      <p class="sub reveal" id="h-sub">Draftech engineers the connected city end to end — from the first survey stake in the field to the final as-built in the record. One accountable team across the entire outside-plant lifecycle.</p>
+      <div class="cta-row reveal" id="h-cta">
+        <a class="btn primary" href="#services">Explore our phases <span class="arr">→</span></a>
+        <a class="btn ghost" href="#contact">Start a project</a>
+      </div>
+      <div class="scrollhint"><div class="mouse"></div>Scroll</div>
+    </header>
+    <div class="drag-tag">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7699" stroke-width="1.6"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="2.4"/></svg>
+      Drag to explore
+    </div>
+
+    <section class="panel" id="services">
+      <div class="kicker">The Lifecycle</div>
+      <h2 class="sec-title">Six disciplines.<br>One continuous route.</h2>
+      <p class="sec-lead">Most projects hand off between vendors at every stage — and lose fidelity at every seam. Draftech carries your network through all six phases under one roof, so the data captured in the field is the data that reaches your as-built.</p>
+
+      <div class="grid" id="cards"></div>
+
+      <div class="stats">
+        <div class="stat"><div class="n" data-to="6">0</div><div class="l">Integrated phases</div></div>
+        <div class="stat"><div class="n" data-to="100" data-suf="%">0</div><div class="l">In-house delivery</div></div>
+        <div class="stat"><div class="n" data-to="1" data-suf=" Partner">0</div><div class="l">Single point of accountability</div></div>
+        <div class="stat"><div class="n" data-to="0" data-suf=" Handoffs">0</div><div class="l">Between field & record</div></div>
+      </div>
+    </section>
+
+    <section class="panel" id="approach" style="background:linear-gradient(180deg,var(--bg),var(--bg2));">
+      <div class="kicker">Why Draftech</div>
+      <h2 class="sec-title">Engineered like it will<br>be built. Because it will.</h2>
+      <p class="sec-lead">Every deliverable is permit-ready and construction-tested. We design to the real world — the pole, the handhole, the jurisdiction, the right-of-way — not the idealized one. That's what it means to own every phase.</p>
+    </section>
+
+    <div class="cta-band" id="contact">
+      <h2>Let's build the<br>connected city.</h2>
+      <p>Bring us your route. We'll carry it from survey to as-built — one partner, every phase.</p>
+      <a class="btn primary" href="mailto:info@draftech.com">Get in touch <span class="arr">→</span></a>
+    </div>
+
+    <footer>
+      <div class="brand"><span class="dot"></span>DRAFTECH</div>
+      <div class="fnote">One Partner. Every Phase. &nbsp;·&nbsp; Outside-Plant Telecom Engineering</div>
+    </footer>
+  </div>
+
+  <div id="loader">
+    <div class="lb">DRAFTECH<span class="dot">.</span></div>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="pct" id="pct">LOADING EXPERIENCE</div>
+  </div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const GH = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/examples/';
+window.__ready = false; window.__err = null;
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x05060c, 0.017);
+
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, 0.1, 200);
+camera.position.set(7.4, 4.2, 8.6);
+// bias the subject toward the right on wide screens so hero copy owns the left
+function applyView(){
+  if (innerWidth > 900) camera.setViewOffset(innerWidth, innerHeight, -Math.round(innerWidth*0.10), 0, innerWidth, innerHeight);
+  else camera.clearViewOffset();
+}
+applyView();
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.055;
+controls.enablePan = false;
+controls.minDistance = 6.5; controls.maxDistance = 15;
+controls.minPolarAngle = 0.55; controls.maxPolarAngle = 1.42;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.55;
+controls.target.set(0, 1.15, 0);
+
+// ---- lighting ----
+scene.add(new THREE.AmbientLight(0x38507a, 0.35));
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(6, 9, 5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1; key.shadow.camera.far = 40;
+key.shadow.camera.left = -8; key.shadow.camera.right = 8;
+key.shadow.camera.top = 8; key.shadow.camera.bottom = -8;
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x00d9ff, 1.15); rim.position.set(-7, 3.5, -6); scene.add(rim);
+const fillW = new THREE.DirectionalLight(0xffd9b0, 0.5); fillW.position.set(2, 2, -8); scene.add(fillW);
+
+// ---- reflective studio floor ----
+const floorMat = new THREE.MeshStandardMaterial({ color:0x05070e, roughness:0.34, metalness:0.55, envMapIntensity:0.85 });
+const floor = new THREE.Mesh(new THREE.CircleGeometry(60, 96), floorMat);
+floor.rotation.x = -Math.PI/2; floor.position.y = 0; floor.receiveShadow = true;
+scene.add(floor);
+
+// ---- loaders / progress ----
+const manager = new THREE.LoadingManager();
+const barfill = document.getElementById('barfill');
+const pctEl = document.getElementById('pct');
+manager.onProgress = (url, loaded, total) => {
+  const p = total ? Math.round(loaded/total*100) : 0;
+  barfill.style.width = Math.max(8, p) + '%';
+};
+
+let mixer = null;
+const pmrem = new THREE.PMREMGenerator(renderer);
+
+new RGBELoader(manager).load(GH+'textures/equirectangular/venice_sunset_1k.hdr', (tex) => {
+  scene.environment = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose(); pmrem.dispose();
+  loadModel();
+}, undefined, (e) => { window.__err = 'HDR: ' + e; fail(); });
+
+function loadModel(){
+  const loader = new GLTFLoader(manager);
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  loader.setDRACOLoader(draco);
+  loader.load(GH+'models/gltf/LittlestTokyo.glb', (g) => {
+    const model = g.scene;
+    // auto-fit: target largest dim ~ 5.6 units, seat on floor, center
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const s = 5.6 / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(s);
+    model.position.x = -center.x * s;
+    model.position.z = -center.z * s;
+    model.position.y = -box.min.y * s;   // sit base exactly on floor
+    model.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true;
+      if (o.material){ o.material.envMapIntensity = 1.0; } } });
+    scene.add(model);
+    controls.target.set(0, size.y*s*0.42, 0);
+
+    mixer = new THREE.AnimationMixer(model);
+    g.animations.forEach(clip => mixer.clipAction(clip).play());
+
+    buildComposer();
+    startReveal();
+    window.__ready = true;
+  }, undefined, (e) => { window.__err = 'GLB: ' + (e && e.message || e); fail(); });
+}
+
+// ---- post ----
+let composer, bloom;
+function buildComposer(){
+  const dpr = renderer.getPixelRatio();
+  const w = Math.floor(innerWidth*dpr), h = Math.floor(innerHeight*dpr);
+  const rt = new THREE.WebGLRenderTarget(w, h, { type:THREE.HalfFloatType, samples:4 });
+  composer = new EffectComposer(renderer, rt);
+  composer.setSize(innerWidth, innerHeight);
+  composer.addPass(new RenderPass(scene, camera));
+  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.62, 0.82);
+  composer.addPass(bloom);
+  composer.addPass(new SMAAPass(w, h));
+  composer.addPass(new OutputPass());
+}
+
+function fail(){
+  document.getElementById('pct').textContent = 'RENDER UNAVAILABLE';
+  setTimeout(hideLoader, 400);
+}
+function hideLoader(){ document.getElementById('loader').classList.add('hide'); }
+
+// ---- render loop ----
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  if (mixer) mixer.update(dt);
+  controls.update();
+  if (composer) composer.render(); else renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  applyView();
+  renderer.setSize(innerWidth, innerHeight);
+  if (composer) composer.setSize(innerWidth, innerHeight);
+  if (bloom) bloom.setSize(innerWidth, innerHeight);
+});
+
+// pause autorotate while the user is dragging, resume after idle
+let idle; controls.addEventListener('start', ()=>{ controls.autoRotate=false; clearTimeout(idle); });
+controls.addEventListener('end', ()=>{ clearTimeout(idle); idle=setTimeout(()=>controls.autoRotate=true, 3500); });
+
+// ---------------- UI: reveal, nav, cards, counters ----------------
+const PHASES = [
+  { n:'01', t:'Field Survey & Data Collection', d:'Total-station and GNSS capture that anchors the entire design to ground truth — precise, verifiable, right the first time.',
+    ic:'<path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="#00e5ff" stroke="none"/>' },
+  { n:'02', t:'Fiber Network Design', d:'Backbone to drop, splice to sheath. Scalable route architecture engineered for the way the network will actually grow.',
+    ic:'<circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6 8v3a3 3 0 0 0 3 3h1M18 8v3a3 3 0 0 1-3 3h-1"/>' },
+  { n:'03', t:'OSP Engineering', d:'Aerial and underground plant designed to the pole, the handhole and the conduit — permit-ready and construction-tested.',
+    ic:'<path d="M12 3v18M12 7h6M12 11h5"/><rect x="9" y="20" width="6" height="2" rx="1"/>' },
+  { n:'04', t:'Permitting & Regulatory', d:'Cleared to build across every jurisdiction — municipal, DOT, railroad and utility — with submittals that hold up.',
+    ic:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>' },
+  { n:'05', t:'Wireless Engineering', d:'Small cell to macro. RF planning through structural mount design, delivered as one coordinated package.',
+    ic:'<path d="M12 13v8"/><circle cx="12" cy="10" r="2"/><path d="M7.5 5.5a6 6 0 0 0 0 9M16.5 5.5a6 6 0 0 1 0 9M4.7 2.7a10 10 0 0 0 0 14.6M19.3 2.7a10 10 0 0 1 0 14.6"/>' },
+  { n:'06', t:'CAD / GIS & As-Built', d:'Every asset drawn, attributed and mapped. The record that closes the loop — the field data, faithfully returned.',
+    ic:'<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 4v14"/>' },
+];
+const cardsEl = document.getElementById('cards');
+cardsEl.innerHTML = PHASES.map(p => `
+  <article class="card">
+    <div class="num">${p.n}</div>
+    <div class="ic"><svg viewBox="0 0 24 24">${p.ic}</svg></div>
+    <h3>${p.t}</h3>
+    <p>${p.d}</p>
+  </article>`).join('');
+
+function startReveal(){
+  hideLoader();
+  ['h-eye','h-title','h-sub','h-cta'].forEach((id,i) => {
+    setTimeout(() => document.getElementById(id).classList.add('in'), 180 + i*140);
+  });
+}
+// fallback: if 3D never signals ready, reveal copy anyway after 6s
+setTimeout(() => { if (!document.getElementById('h-title').classList.contains('in')) startReveal(); }, 6000);
+
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+}, { threshold:0.18 });
+document.querySelectorAll('.card, .reveal').forEach(el => io.observe(el));
+
+// nav solidify + stat counters
+const nav = document.getElementById('nav');
+const dragTag = document.querySelector('.drag-tag');
+addEventListener('scroll', () => {
+  const past = scrollY > 60;
+  nav.classList.toggle('solid', past);
+  dragTag.style.opacity = past ? '0' : '';
+}, { passive:true });
+let counted = false;
+const statObs = new IntersectionObserver((ents)=>{
+  if (counted) return;
+  if (ents.some(e=>e.isIntersecting)){ counted = true;
+    document.querySelectorAll('.stat .n').forEach(el=>{
+      const to = +el.dataset.to, suf = el.dataset.suf||''; let v=0;
+      const step = Math.max(1, Math.round(to/28));
+      const t = setInterval(()=>{ v+=step; if(v>=to){v=to; clearInterval(t);} el.textContent = v+suf; }, 34);
+    });
+  }
+}, { threshold:0.4 });
+document.querySelectorAll('.stats').forEach(el=>statObs.observe(el));
+</script>
+</body>
+</html>
