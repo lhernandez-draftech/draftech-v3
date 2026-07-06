@@ -117,13 +117,13 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const GH='https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/examples/';
 window.__ready=false; window.__err=null;
-const V=THREE.Vector3, clamp=(x,a,b)=>Math.min(b,Math.max(a,x)), smooth=t=>t*t*(3-2*t);
+const V=THREE.Vector3, clamp=(x,a,b)=>Math.min(b,Math.max(a,x)), lerp=(a,b,t)=>a+(b-a)*t, smooth=t=>t*t*(3-2*t);
 
 const renderer=new THREE.WebGLRenderer({canvas:c,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
-renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.8;
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0x070a12); scene.fog=new THREE.FogExp2(0x080b14,0.009);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x04060a); scene.fog=new THREE.FogExp2(0x05070c,0.014);
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.1,700);
 
 /* ---------- procedural textures (ground + effects only) ---------- */
@@ -176,32 +176,33 @@ function mesh(geo,mat,x=0,y=0,z=0){const m=new THREE.Mesh(geo,mat);m.position.se
 function grp(x,z){const g=new THREE.Group();g.position.set(x,0,z);return g;}
 
 /* ---------- lighting ---------- */
-scene.add(new THREE.HemisphereLight(0x35496e,0x0c0f16,0.62));
-const moon=new THREE.DirectionalLight(0xbfd0ff,1.65); moon.position.set(60,80,30); moon.castShadow=true;
+scene.add(new THREE.HemisphereLight(0x22334d,0x080a0f,0.3));   // low night ambient (darker)
+const moon=new THREE.DirectionalLight(0xa6bde8,1.0); moon.position.set(60,80,30); moon.castShadow=true;
 moon.shadow.mapSize.set(2048,2048); moon.shadow.camera.near=1; moon.shadow.camera.far=360;
-const SH=110; moon.shadow.camera.left=-SH;moon.shadow.camera.right=SH;moon.shadow.camera.top=SH;moon.shadow.camera.bottom=-SH; moon.shadow.bias=-0.0004; moon.shadow.normalBias=0.03; scene.add(moon);
-const warmSun=new THREE.DirectionalLight(0xffb060,0.85); warmSun.position.set(-40,14,-50); scene.add(warmSun);
+const SH=120; moon.shadow.camera.left=-SH;moon.shadow.camera.right=SH;moon.shadow.camera.top=SH;moon.shadow.camera.bottom=-SH; moon.shadow.bias=-0.0004; moon.shadow.normalBias=0.03; scene.add(moon);
+const warmSun=new THREE.DirectionalLight(0xffb060,0.35); warmSun.position.set(-40,14,-50); scene.add(warmSun);
 
 /* ---------- ground ---------- */
 const ground=mesh(new THREE.PlaneGeometry(900,900),M.asphalt); ground.rotation.x=-Math.PI/2; scene.add(ground);
 
 /* ---------- route ---------- */
-const STOP=[ new V(0,0,0), new V(30,0,0), new V(60,0,0), new V(92,0,0), new V(126,0,0), new V(160,0,0) ]; // stops along the street centerline (we travel +x)
-const POLEZ=6.5;    // pole line + LIT fiber on the RIGHT of the street
-const LEFTZ=-6.8;   // phase equipment on the LEFT of the street
-let routeCurve=null;
-// ---- STREET down the middle (fresh clean asphalt + crisp lane lines + curbs + sidewalks) ----
-(function street(){
-  const road=mesh(new THREE.PlaneGeometry(320,8.6),M.asphalt,100,0.012,0); road.rotation.x=-Math.PI/2; scene.add(road);
-  const yc=new THREE.MeshStandardMaterial({color:0xf2c81e,roughness:.5,metalness:0,emissive:0x2a2205,emissiveIntensity:.22});
-  const wc=new THREE.MeshStandardMaterial({color:0xeef1f5,roughness:.5,metalness:0,emissive:0x181c22,emissiveIntensity:.18});
-  for(const dz of[-0.17,0.17]){const l=mesh(new THREE.PlaneGeometry(320,0.14),yc,100,0.03,dz);l.rotation.x=-Math.PI/2;scene.add(l);}   // double-yellow center
-  for(const z of[-3.8,3.8]){const l=mesh(new THREE.PlaneGeometry(320,0.16),wc,100,0.03,z);l.rotation.x=-Math.PI/2;scene.add(l);}       // white edge lines
-  for(const z of[-4.4,4.4]){scene.add(mesh(new THREE.BoxGeometry(320,0.32,0.45),M.concrete,100,0.16,z));}                              // curbs
-  for(const z of[-6.6,6.6]){const s=mesh(new THREE.PlaneGeometry(320,4),M.concrete,100,0.012,z);s.rotation.x=-Math.PI/2;scene.add(s);} // sidewalks (poles right / phases left sit on these)
-})();
+// ---- CURVED ROAD we follow; poles+fiber on the RIGHT, phase equipment on the LEFT ----
+const roadCurve=new THREE.CatmullRomCurve3([ new V(-55,0,2), new V(-15,0,5), new V(28,0,-11), new V(66,0,7), new V(104,0,-10), new V(142,0,9), new V(178,0,-5), new V(216,0,3) ],false,'catmullrom',0.5);
+const stopT=[0.13,0.27,0.41,0.55,0.69,0.83]; // 6 phases spread along the road
+const POLEZ=6.6, LEFTZ=6.9; let routeCurve=null;
+function roadFrame(t){ t=clamp(t,0,1); const P=roadCurve.getPointAt(t); P.y=0; const T=roadCurve.getTangentAt(t); T.y=0; T.normalize(); const right=new V(-T.z,0,T.x); const left=new V(T.z,0,-T.x); return {P,T,right,left}; }
+function tubeMesh(curve,mat,r,seg){ return new THREE.Mesh(new THREE.TubeGeometry(curve,seg||60,r,7,false),mat); }
+function buildRibbon(offset,width,mat,y){ const N=320,pos=[],idx=[]; for(let i=0;i<=N;i++){ const f=roadFrame(i/N); const a=f.P.clone().addScaledVector(f.right,offset-width/2), b=f.P.clone().addScaledVector(f.right,offset+width/2); pos.push(a.x,y,a.z,b.x,y,b.z);} for(let i=0;i<N;i++){const k=i*2;idx.push(k,k+1,k+2,k+1,k+3,k+2);} const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals(); const m=new THREE.Mesh(g,mat); m.receiveShadow=true; scene.add(m); return m; }
+const yc=new THREE.MeshStandardMaterial({color:0xd8b21c,roughness:.6,metalness:0,emissive:0x171203,emissiveIntensity:.12});
+const wc=new THREE.MeshStandardMaterial({color:0xcbd2d9,roughness:.6,metalness:0,emissive:0x0d1015,emissiveIntensity:.1});
+buildRibbon(0,8.4,M.asphalt,0.01);
+buildRibbon(-6.9,4,M.concrete,0.06); buildRibbon(6.9,4,M.concrete,0.06);   // sidewalks (phases left / poles right)
+buildRibbon(-0.16,0.13,yc,0.02); buildRibbon(0.16,0.13,yc,0.02);           // double-yellow center
+buildRibbon(-3.9,0.15,wc,0.02); buildRibbon(3.9,0.15,wc,0.02);             // white edge lines
 const pulse=new THREE.Mesh(new THREE.SphereGeometry(0.17,16,16),new THREE.MeshBasicMaterial({color:0xe6fdff}));
 const pulseLight=new THREE.PointLight(0x25e8ff,4,14); scene.add(pulse,pulseLight);
+// place a group's equipment on the LEFT roadside at stop i, facing the road (+z → toward road)
+function phaseGroup(i){ const f=roadFrame(stopT[i]); const g=new THREE.Group(); g.position.set(f.P.x+f.left.x*LEFTZ,0,f.P.z+f.left.z*LEFTZ); g.rotation.y=Math.atan2(f.right.x,f.right.z); scene.add(g); return g; }
 
 /* ---------- model loading ---------- */
 const MODELS={
@@ -241,7 +242,7 @@ function catenary(a,b,sag,seg=14){const pts=[];for(let i=0;i<=seg;i++){const t=i
 /* ---------- procedural cell tower (kept — reads as real galvanized steel) ---------- */
 function tower(px,pz){const g=grp(px,pz);
   g.add(mesh(new THREE.BoxGeometry(4.4,0.35,4.4),M.concrete,0,0.17,0));
-  const H=17;g.add(mesh(cyl(0.34,0.62,H,32),M.galv,0,H/2+0.32,0));
+  const H=13;g.add(mesh(cyl(0.34,0.56,H,32),M.galv,0,H/2+0.32,0));
   g.add(mesh(cyl(0.8,0.8,0.18,32),M.steelDark,0,0.42,0));
   for(let i=0;i<8;i++){const a=i/8*Math.PI*2;g.add(mesh(cyl(0.05,0.05,0.22,8),M.brushed,Math.cos(a)*0.66,0.5,Math.sin(a)*0.66));}
   g.add(mesh(new THREE.BoxGeometry(0.16,H-1,0.08),M.steelDark,0.5,H/2+0.5,0.15));
@@ -263,24 +264,22 @@ function buildWorld(){
   POLE_XFMR=buildPreset(G.poles,'preset_01_');  // pole WITH transformer/fuses
   POLE_TALL=buildPreset(G.poles,'preset_02_');  // cleaner distribution pole
 
-  // ---- POLE LINE on the RIGHT of the street, strung with conductors; the LOWEST line is the LIT fiber + traveling current ----
-  const poleZof = x => POLEZ + Math.sin(x*0.02)*0.5;
-  const line=[];
-  for(let x=-24;x<=216;x+=24){ const z=poleZof(x); scene.add(place(line.length%3===1?POLE_XFMR:POLE_TALL,{x,z,ry:-1.571,targetH:9.6})); line.push(new V(x,0,z)); }
+  // ---- POLE LINE on the RIGHT of the curved road, strung with conductors; the LOWEST line is the LIT fiber ----
+  const polePts=[]; let pc=0;
+  for(let t=0.02;t<=0.985;t+=0.05){ const f=roadFrame(t); const p=f.P.clone().addScaledVector(f.right,POLEZ); scene.add(place((pc++%3===1)?POLE_XFMR:POLE_TALL,{x:p.x,z:p.z,ry:Math.atan2(f.T.x,f.T.z)-Math.PI,targetH:9.6})); polePts.push(p); }
   const TOPY=8.3, COMMY=5.6;
-  for(let i=0;i<line.length-1;i++){
-    for(const zo of [-0.85,0,0.85]){ const p=catenary(new V(line[i].x,TOPY,line[i].z+zo),new V(line[i+1].x,TOPY,line[i+1].z+zo),0.5,14); scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p),14,0.025,6,false),M.black)); }
-  }
-  const commPts=[]; for(let i=0;i<line.length-1;i++){ const s=catenary(new V(line[i].x,COMMY,line[i].z-0.4),new V(line[i+1].x,COMMY,line[i+1].z-0.4),0.65,16); if(i>0)s.shift(); commPts.push(...s); }
+  for(let i=0;i<polePts.length-1;i++){ const a=polePts[i],b=polePts[i+1]; const d=new V().subVectors(b,a); const perp=new V(-d.z,0,d.x).normalize();
+    for(const o of[-0.85,0,0.85]) scene.add(tubeMesh(new THREE.CatmullRomCurve3(catenary(new V(a.x+perp.x*o,TOPY,a.z+perp.z*o),new V(b.x+perp.x*o,TOPY,b.z+perp.z*o),0.5,10)),M.black,0.024,12)); }
+  const commPts=[]; for(let i=0;i<polePts.length-1;i++){ const s=catenary(new V(polePts[i].x,COMMY,polePts[i].z),new V(polePts[i+1].x,COMMY,polePts[i+1].z),0.6,12); if(i>0)s.shift(); commPts.push(...s); }
   routeCurve=new THREE.CatmullRomCurve3(commPts);
-  scene.add(new THREE.Mesh(new THREE.TubeGeometry(routeCurve, commPts.length*3, 0.05, 8, false), fiberCore)); // the lit fiber line
+  scene.add(tubeMesh(routeCurve,fiberCore,0.05,commPts.length*3)); // the lit fiber line
 
-  // per-phase warm key light on the LEFT-side equipment (between it and the street, so the camera-facing side reads)
-  STOP.forEach(s=>{const k=new THREE.PointLight(0xffceA0,64,48,2);k.position.set(s.x-2,5.5,LEFTZ+3);scene.add(k);});
+  // per-phase warm key light between each phase's equipment and the road (dramatic pool against the dark)
+  stopT.forEach(t=>{ const f=roadFrame(t); const p=f.P.clone().addScaledVector(f.left,LEFTZ-3); const k=new THREE.PointLight(0xffd2a4,95,30,2); k.position.set(p.x,5.5,p.z); scene.add(k); });
 
   // ============ CLEAN, BUILT, PHASE-SPECIFIC EQUIPMENT on the LEFT of the street (facing +z toward the road/camera) ============
   // ---- 0 Field Survey ---- total station (hero) + GNSS rover + control prism aimed at the road
-  { const g=grp(STOP[0].x,LEFTZ); scene.add(g);
+  { const g=phaseGroup(0);
     const tri=grp(0,0);g.add(tri);
     for(let i=0;i<3;i++){const a=i/3*6.283;const leg=mesh(cyl(0.028,0.045,2.7,12),CM.alu,Math.cos(a)*0.5,1.15,Math.sin(a)*0.5);leg.rotation.z=Math.cos(a)*0.2;leg.rotation.x=-Math.sin(a)*0.2;tri.add(leg);}
     tri.add(mesh(cyl(0.19,0.22,0.12,20),CM.bodyDark,0,2.42,0));
@@ -298,12 +297,12 @@ function buildWorld(){
     const prism=mesh(new THREE.OctahedronGeometry(0.15),glowCyan(3),1.4,0.85,2.2);g.add(prism);
     g.add(mesh(cyl(0.018,0.018,0.85,10),CM.alu,1.4,0.42,2.2));
     const laser=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0,3.12,0.22),new V(1.4,0.85,2.2)]),new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:.5}));g.add(laser);
-    g.scale.setScalar(1.3);
+    g.scale.setScalar(1.12);
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
     updaters.push(t=>{laser.material.opacity=.35+.25*Math.sin(t*4);prism.rotation.y=t*0.6;rled.material.emissiveIntensity=2+2*(Math.sin(t*3)>0?1:0);});
   }
   // ---- 1 Fiber Network Design ---- fiber cabinet (hero) + splice closure + glowing splices toward the road
-  { const g=grp(STOP[1].x,LEFTZ); scene.add(g);
+  { const g=phaseGroup(1);
     const cab=grp(0.5,0);g.add(cab);
     cab.add(mesh(rbox(1.5,0.14,1.0,0.04),CM.bodyDark,0,0.09,0));
     cab.add(mesh(rbox(1.4,1.9,0.9,0.05),CM.draftech,0,1.15,0));
@@ -321,7 +320,7 @@ function buildWorld(){
     updaters.push(t=>{dled.material.emissiveIntensity=2+2*Math.abs(Math.sin(t*2));nodes.forEach((n,i)=>{n.material.emissiveIntensity=1+2.4*Math.max(0,Math.sin(t*1.5-i*0.9));});});
   }
   // ---- 2 OSP Engineering ---- fiber pedestal (hero) + clean handhole toward the curb + conduit sweep w/ lit fiber
-  { const g=grp(STOP[2].x,LEFTZ); scene.add(g);
+  { const g=phaseGroup(2);
     const ped=grp(-0.6,0);g.add(ped);
     ped.add(mesh(rbox(1.0,0.12,0.8,0.03),CM.bodyDark,0,0.08,0));
     ped.add(mesh(rbox(0.9,1.4,0.7,0.05),CM.bodyGrey,0,0.78,0));
@@ -338,7 +337,7 @@ function buildWorld(){
     updaters.push(t=>{pled.material.emissiveIntensity=1.5+2.2*Math.pow(Math.max(0,Math.sin(t*2.2)),6);});
   }
   // ---- 3 Permitting & Regulatory ---- permit board/plan-set (hero) + review table + clean delineators toward road
-  { const g=grp(STOP[3].x,LEFTZ); scene.add(g);
+  { const g=phaseGroup(3);
     const sp=grp(0.3,0);g.add(sp);
     for(const sx of[-0.85,0.85])sp.add(mesh(cyl(0.05,0.05,2.6,14),CM.bodyGrey,sx,1.3,0));
     sp.add(mesh(rbox(2.1,1.7,0.08,0.03),CM.bodyWhite,0,2.25,0));
@@ -351,17 +350,19 @@ function buildWorld(){
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
   }
   // ---- 4 Wireless Engineering ---- clean galvanized monopole (hero, left roadside) + equipment cabinet + RRUs
-  { const px=STOP[4].x; scene.add(tower(px,LEFTZ-0.4));
-    const cab=grp(px+2.4,LEFTZ+1.6);scene.add(cab);
+  { const f=roadFrame(stopT[4]); const base=new V(f.P.x+f.left.x*(LEFTZ+7),0,f.P.z+f.left.z*(LEFTZ+7)); scene.add(tower(base.x,base.z));
+    const g=new THREE.Group(); g.position.copy(base); g.rotation.y=Math.atan2(f.right.x,f.right.z); scene.add(g);
+    const cab=grp(2.4,1.4);g.add(cab);
     cab.add(mesh(rbox(1.2,0.12,0.8,0.03),CM.bodyDark,0,0.1,0));
     cab.add(mesh(rbox(1.1,1.5,0.7,0.05),CM.bodyGrey,0,0.9,0));
     for(let i=0;i<4;i++)cab.add(mesh(rbox(0.7,0.03,0.02,0.01),CM.bodyDark,0,0.6+i*0.2,0.36));
     const wled=mesh(new THREE.SphereGeometry(0.03,10,10),glowCyan(4),0.35,1.45,0.36);cab.add(wled);
-    [[px-2.4,LEFTZ+1.3,0.32],[px-1.9,LEFTZ+1.7,0.86]].forEach(r=>scene.add(mesh(rbox(0.4,0.62,0.22,0.03),CM.bodyWhite,r[0],r[2]+0.3,r[1])));
+    [[-2.4,1.2,0.32],[-1.9,1.6,0.86]].forEach(r=>g.add(mesh(rbox(0.4,0.62,0.22,0.03),CM.bodyWhite,r[0],r[2]+0.3,r[1])));
+    g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
     updaters.push(t=>{wled.material.emissiveIntensity=1.5+2.2*Math.pow(Math.max(0,Math.sin(t*2.4)),6);});
   }
   // ---- 5 CAD / GIS & As-Built ---- as-built plan (hero, toward road) + clean workstation + plotter
-  { const g=grp(STOP[5].x,LEFTZ); scene.add(g);
+  { const g=phaseGroup(5);
     const plinth=mesh(rbox(6,0.4,4,0.05),CM.bodyDark,0,0.2,1.4);g.add(plinth);
     const sheet=mesh(new THREE.PlaneGeometry(5.6,3.6),M.plan,0,0.41,1.4);sheet.rotation.x=-Math.PI/2;g.add(sheet);
     const sweep=mesh(new THREE.PlaneGeometry(0.05,3.6),glowCyan(3),-2.6,0.42,1.4);sweep.rotation.x=-Math.PI/2;g.add(sweep);
@@ -382,17 +383,10 @@ function buildWorld(){
 let composer,bloom;
 function buildComposer(){const dpr=renderer.getPixelRatio(),w=innerWidth*dpr|0,h=innerHeight*dpr|0;composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType,samples:4}));composer.setSize(innerWidth,innerHeight);composer.addPass(new RenderPass(scene,camera));bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.42,0.6,0.85);composer.addPass(bloom);composer.addPass(new SMAAPass(w,h));composer.addPass(new OutputPass());}
 
-/* ---------- camera keyframes ---------- */
-// camera drives down the STREET (central, z≈1.6), turning LEFT (toward -z) to face each phase's equipment; poles stay on the right (+z)
-const KEY=[
-  {pos:new V(STOP[0].x-28,4.4,3.2),look:new V(STOP[0].x+26,1.7,-1.4)}, // intro: looking down the street
-  {pos:new V(STOP[0].x-9,2.7,1.6),look:new V(STOP[0].x+1,1.5,-4.4)},   // survey
-  {pos:new V(STOP[1].x-9,2.7,1.6),look:new V(STOP[1].x+1,1.5,-4.4)},   // fiber
-  {pos:new V(STOP[2].x-9,2.6,1.6),look:new V(STOP[2].x+1,1.3,-4.4)},   // osp (low)
-  {pos:new V(STOP[3].x-9,2.9,1.6),look:new V(STOP[3].x+1,1.8,-4.4)},   // permit (board taller)
-  {pos:new V(STOP[4].x-10,3.6,1.8),look:new V(STOP[4].x+1,3.2,-4.6)},  // wireless (tower tall)
-  {pos:new V(STOP[5].x-9,3.0,1.6),look:new V(STOP[5].x+1,1.2,-4.2)},   // cad (plan low)
-];
+/* ---------- camera drives ALONG the curved road (central, right lane), turning LEFT to face each phase ---------- */
+const CAM_T0=0.055, CAM_T1=0.9; // scroll 0→1 maps the camera's road parameter
+const phaseLookH=[2.1,1.35,1.2,1.9,8.5,1.2];    // look-height per phase (wireless = up-tilt to the antennas)
+const phaseLookOff=[5.6,5.6,5.6,5.6,13,5.6];    // how far left to aim
 const PH=[
   {no:'01',t:'Field Survey',d:'Total-station and GNSS capture that anchors the entire design to ground truth — precise, verifiable, and right the first time.'},
   {no:'02',t:'Fiber Network Design',d:'Backbone to drop, splice to sheath. Scalable route architecture engineered for the way the network will actually grow.'},
@@ -406,7 +400,7 @@ const PH=[
 const scroller=document.getElementById('scroller');
 for(let i=0;i<7;i++){const d=document.createElement('div');d.className='spacer';scroller.appendChild(d);}
 const rail=document.getElementById('rail'); const scrollRange=()=>Math.max(1,scroller.offsetHeight-innerHeight);
-PH.forEach((p,i)=>{const r=document.createElement('div');r.className='r';r.innerHTML=`<span class="lab">${p.t}</span><span class="pt"></span>`;r.onclick=()=>scrollTo({top:scrollRange()*((i+1)/6),behavior:'smooth'});rail.appendChild(r);});
+PH.forEach((p,i)=>{const r=document.createElement('div');r.className='r';r.innerHTML=`<span class="lab">${p.t}</span><span class="pt"></span>`;r.onclick=()=>scrollTo({top:scrollRange()*clamp((stopT[i]-CAM_T0)/(CAM_T1-CAM_T0),0,1),behavior:'smooth'});rail.appendChild(r);});
 const railR=[...rail.children];
 let targetP=0,curP=0;
 addEventListener('scroll',()=>{targetP=clamp(scrollY/scrollRange(),0,1);},{passive:true});
@@ -416,18 +410,23 @@ function setCaption(idx){ if(idx===lastPh)return; lastPh=idx;
   if(idx<0){heroEl.classList.add('show');capEl.classList.remove('show');}
   else{heroEl.classList.remove('show');const p=PH[idx];cno.textContent=p.no;cey.textContent='Phase '+p.no+' / 06';ct.textContent=p.t;cd.textContent=p.d;capEl.classList.add('show');}
   railR.forEach((r,i)=>r.classList.toggle('on',i===idx)); }
-const tmpP=new V(),tmpL=new V(),curL=new V().copy(KEY[0].look); let frame=0;
-// responsive framing: narrower/portrait viewports pull the camera back + widen FOV so subjects fit and don't collide with copy
-// desktop framing is EXACTLY the earlier camera (FOV 40, no pull-back); only true portrait widens FOV so mobile fits
-function computeFraming(){const a=innerWidth/innerHeight; camera.fov = a<0.7?52 : a<0.95?46 : 40; camera.updateProjectionMatrix();}
+let frame=0; const curL=new V();
+{ const f0=roadFrame(CAM_T0+0.06); curL.set(f0.P.x,1.6,f0.P.z); }
+function computeFraming(){const a=innerWidth/innerHeight; camera.fov = a<0.7?58 : a<0.95?50 : 42; camera.updateProjectionMatrix();}
 computeFraming();
+const _a=new V(),_pp=new V(),_lt=new V();
 function updateCamera(){
   curP+=(targetP-curP)*0.08;
-  const seg=curP*(KEY.length-1); const i=clamp(Math.floor(seg),0,KEY.length-2); const f=smooth(seg-i);
-  tmpP.lerpVectors(KEY[i].pos,KEY[i+1].pos,f); tmpL.lerpVectors(KEY[i].look,KEY[i+1].look,f);
-  camera.position.copy(tmpP); camera.position.y+=Math.sin(frame*0.006)*0.05;
-  curL.lerp(tmpL,0.15); camera.lookAt(curL);
-  setCaption(clamp(Math.round(seg)-1,-1,5));
+  const camT=clamp(lerp(CAM_T0,CAM_T1,curP),0.001,0.999);
+  const f=roadFrame(camT);
+  camera.position.set(f.P.x+f.right.x*1.7, 2.65+Math.sin(frame*0.006)*0.05, f.P.z+f.right.z*1.7); // central, slightly right lane
+  const fa=roadFrame(Math.min(camT+0.05,0.999)); _a.set(fa.P.x,1.55,fa.P.z);                       // look ahead down the road
+  let bi=-1,bc=0; for(let i=0;i<stopT.length;i++){ const d=Math.abs(camT-stopT[i]); const c=d<0.062?smooth(1-d/0.062):0; if(c>bc){bc=c;bi=i;} }
+  _lt.copy(_a);
+  if(bi>=0){ const pf=roadFrame(stopT[bi]); const off=phaseLookOff[bi]; _pp.set(pf.P.x+pf.left.x*off,phaseLookH[bi],pf.P.z+pf.left.z*off); _lt.lerp(_pp,bc*0.9); } // turn LEFT to the phase
+  curL.lerp(_lt,0.13); camera.lookAt(curL);
+  let idx=-1; if(camT>=stopT[0]-0.02){ let md=9; for(let i=0;i<stopT.length;i++){const dd=Math.abs(camT-stopT[i]); if(dd<md){md=dd;idx=i;}} }
+  setCaption(idx);
   hintEl.style.opacity=curP<0.04?'1':'0';
 }
 /* ---------- loop ---------- */
