@@ -108,6 +108,7 @@
 import * as THREE from 'three';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -152,8 +153,24 @@ const M={
   sign:new THREE.MeshStandardMaterial({map:signTex,roughness:.5,metalness:.1,emissive:0x0a2030,emissiveIntensity:.6}),
   plan:new THREE.MeshStandardMaterial({map:planTex,roughness:.6,metalness:.1,emissive:0x0a2c3a,emissiveIntensity:.8,transparent:true,opacity:.96}),
 };
-const fiberCore=new THREE.MeshStandardMaterial({color:0x18e6ff,emissive:0x18e6ff,emissiveIntensity:3.4,roughness:.4,metalness:0});
+const fiberCore=new THREE.MeshStandardMaterial({color:0x18e6ff,emissive:0x18e6ff,emissiveIntensity:2.1,roughness:.4,metalness:0});
 const glowCyan=(i=3)=>new THREE.MeshStandardMaterial({color:0x00e5ff,emissive:0x00e5ff,emissiveIntensity:i,roughness:.4});
+// clean, factory-new palette (no grime/wear) for built phase equipment — reads as a product render under HDRI
+const CM={
+  bodyDark:new THREE.MeshStandardMaterial({color:0x252a33,roughness:.36,metalness:.5,envMapIntensity:1.15}),
+  bodyGrey:new THREE.MeshStandardMaterial({color:0x9ba3ad,roughness:.32,metalness:.55,envMapIntensity:1.25}),
+  bodyWhite:new THREE.MeshStandardMaterial({color:0xeef1f5,roughness:.34,metalness:.2,envMapIntensity:1.0}),
+  draftech:new THREE.MeshStandardMaterial({color:0x101a2e,roughness:.34,metalness:.42,envMapIntensity:1.05}),
+  alu:new THREE.MeshStandardMaterial({color:0xc9ced4,roughness:.26,metalness:.92,envMapIntensity:1.45}),
+  cleanYellow:new THREE.MeshStandardMaterial({color:0xf4c41c,roughness:.34,metalness:.25,envMapIntensity:.95}),
+  plastic:new THREE.MeshStandardMaterial({color:0xf3f5f8,roughness:.45,metalness:0,envMapIntensity:.7}),
+  rubber:new THREE.MeshStandardMaterial({color:0x14171c,roughness:.62,metalness:.1}),
+  cleanConc:new THREE.MeshStandardMaterial({color:0xd2d5d3,roughness:.82,metalness:0,envMapIntensity:.5}),
+  cleanGlass:new THREE.MeshPhysicalMaterial({roughness:.05,metalness:0,transmission:.92,thickness:.4,ior:1.45,color:0xdff2ff,envMapIntensity:1.5,transparent:true}),
+  screen:new THREE.MeshStandardMaterial({color:0x061620,emissive:0x0b3a52,emissiveIntensity:.7,roughness:.22,metalness:.1}),
+  orange:new THREE.MeshStandardMaterial({color:0xff7d22,roughness:.4,metalness:.05,emissive:0xff5a00,emissiveIntensity:.22}),
+};
+const rbox=(w,h,d,r=0.03,seg=3)=>new RoundedBoxGeometry(w,h,d,seg,r);
 const cyl=(rt,rb,h,seg=32)=>new THREE.CylinderGeometry(rt,rb,h,seg);
 function mesh(geo,mat,x=0,y=0,z=0){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;return m;}
 function grp(x,z){const g=new THREE.Group();g.position.set(x,0,z);return g;}
@@ -179,21 +196,7 @@ const pulseLight=new THREE.PointLight(0x25e8ff,4,14); scene.add(pulse,pulseLight
 
 /* ---------- model loading ---------- */
 const MODELS={
-  poles:'models/modular_electricity_poles/modular_electricity_poles_1k.gltf',
-  utilbox:'models/utility_box_01/utility_box_01_1k.gltf',
-  powerbox:'models/power_box_01/power_box_01_1k.gltf',
-  barrier:'models/concrete_road_barrier/concrete_road_barrier_1k.gltf',
-  generator:'models/portable_generator/portable_generator_1k.gltf',
-  manhole:'models/water_manhole_cover/water_manhole_cover_1k.gltf',
-  desk:'models/metal_office_desk/metal_office_desk_1k.gltf',
-  lamp:'models/street_lamp_01/street_lamp_01_1k.gltf',
-  chainfence:'models/modular_chainlink_fence/modular_chainlink_fence_1k.gltf',
-  toolbox:'models/metal_toolbox/metal_toolbox_1k.gltf',
-  barrel:'models/barrel_03/barrel_03_1k.gltf',
-  ladder:'models/wooden_ladder/wooden_ladder_1k.gltf',
-  cementbag:'models/cement_bag/cement_bag_1k.gltf',
-  drawer:'models/drawer_cabinet/drawer_cabinet_1k.gltf',
-  utilbox2:'models/utility_box_02/utility_box_02_1k.gltf',
+  poles:'models/modular_electricity_poles/modular_electricity_poles_1k.gltf', // corridor (liked layout)
 };
 const G={}, updaters=[];
 const manager=new THREE.LoadingManager();
@@ -255,7 +258,6 @@ function buildWorld(){
   const poleZof = x => ROFF + 2 + Math.sin(x*0.014)*2.0;
   const line=[];
   for(let x=-22;x<=214;x+=26){ const z=poleZof(x); scene.add(place(line.length%3===1?POLE_XFMR:POLE_TALL,{x,z,ry:-1.571,targetH:9.6})); line.push(new V(x,0,z)); }
-  [4,82,160].forEach(x=>scene.add(place(G.lamp,{x,z:poleZof(x)+2.6,ry:-1.571,targetH:8})));
   const TOPY=8.3, COMMY=5.7;
   for(let i=0;i<line.length-1;i++){
     for(const zo of [-0.85,0,0.85]){ const p=catenary(new V(line[i].x,TOPY,line[i].z+zo),new V(line[i+1].x,TOPY,line[i+1].z+zo),0.5,14); scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p),14,0.025,6,false),M.black)); }
@@ -267,83 +269,111 @@ function buildWorld(){
   // per-station warm key light so subjects read
   STOP.forEach(s=>{const k=new THREE.PointLight(0xffceA0,62,46,2);k.position.set(s.x-3,6,s.z+4);scene.add(k);});
 
-  // ---- 0 Field Survey ---- (procedural instrument + real field gear behind)
+  // ================= CLEAN, BUILT, PHASE-SPECIFIC EQUIPMENT (product-render look, composed) =================
+  // ---- 0 Field Survey ---- total station (hero) + GNSS rover + control prism
   { const px=STOP[0].x,pz=STOP[0].z; const g=grp(px,pz); scene.add(g);
-    const tri=grp(0,0);g.add(tri);for(let i=0;i<3;i++){const a=i/3*Math.PI*2;const leg=mesh(cyl(0.03,0.05,2.7,10),M.steelDark,Math.cos(a)*0.55,1.15,Math.sin(a)*0.55);leg.rotation.z=Math.cos(a)*0.22;leg.rotation.x=-Math.sin(a)*0.22;tri.add(leg);} tri.add(mesh(cyl(0.2,0.24,0.16,16),M.black,0,2.4,0));
-    const inst=grp(0,0);inst.position.y=2.5;g.add(inst);
-    inst.add(mesh(cyl(0.17,0.2,0.12,24),M.steelDark,0,0.06,0));                       // tribrach
-    for(let i=0;i<3;i++){const a=i/3*6.283;inst.add(mesh(cyl(0.028,0.028,0.1,10),M.brushed,Math.cos(a)*0.13,0.01,Math.sin(a)*0.13));}
-    inst.add(mesh(cyl(0.15,0.17,0.22,24),M.yellow,0,0.24,0));                          // rotating base
-    for(const sx of[-0.12,0.12])inst.add(mesh(new THREE.BoxGeometry(0.05,0.34,0.15),M.yellow,sx,0.5,0)); // standards
-    inst.add(mesh(cyl(0.07,0.07,0.42,20),M.steelDark,0,0.56,0).rotateZ(Math.PI/2));    // telescope
-    inst.add(mesh(new THREE.CircleGeometry(0.06,20),M.glass,0.21,0.56,0).rotateY(Math.PI/2));
-    inst.add(mesh(new THREE.BoxGeometry(0.02,0.16,0.13),new THREE.MeshStandardMaterial({color:0x0d1520,emissive:0x0a2740,emissiveIntensity:.5,roughness:.4}),-0.155,0.3,0)); // keypad
-    inst.add(mesh(cyl(0.014,0.014,0.2,8),M.steelDark,0,0.74,0));                        // handle
-    const prism=mesh(new THREE.OctahedronGeometry(0.16),glowCyan(3),4,0.9,-1.2);g.add(prism); g.add(mesh(cyl(0.02,0.02,0.9,8),M.steelDark,4,0.45,-1.2));
-    const laser=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0.21,3.06,0),new V(4,0.9,-1.2)]),new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:.5}));g.add(laser);
-    g.scale.setScalar(1.2);
-    scene.add(place(G.generator,{x:px+2.6,z:pz+3.4,ry:-0.5}));           // real field generator
-    scene.add(place(G.toolbox,{x:px+1.5,z:pz+1.5,ry:0.6,targetH:0.42})); // field toolbox
-    scene.add(place(G.barrel,{x:px-1.7,z:pz+2.9,ry:0}));                 // barrel
-    updaters.push(t=>{laser.material.opacity=.35+.25*Math.sin(t*4);prism.rotation.y=t*0.6;});
+    const tri=grp(0,0);g.add(tri);
+    for(let i=0;i<3;i++){const a=i/3*6.283;const leg=mesh(cyl(0.028,0.045,2.7,12),CM.alu,Math.cos(a)*0.5,1.15,Math.sin(a)*0.5);leg.rotation.z=Math.cos(a)*0.2;leg.rotation.x=-Math.sin(a)*0.2;tri.add(leg);}
+    tri.add(mesh(cyl(0.19,0.22,0.12,20),CM.bodyDark,0,2.42,0));
+    const inst=grp(0,0);inst.position.y=2.54;g.add(inst);
+    inst.add(mesh(cyl(0.17,0.19,0.12,28),CM.bodyDark,0,0.06,0));
+    inst.add(mesh(cyl(0.15,0.16,0.2,28),CM.cleanYellow,0,0.22,0));
+    for(const sx of[-0.13,0.13])inst.add(mesh(rbox(0.06,0.36,0.16,0.02),CM.bodyDark,sx,0.5,0));
+    inst.add(mesh(cyl(0.075,0.075,0.44,24),CM.bodyDark,0,0.58,0).rotateZ(Math.PI/2));
+    inst.add(mesh(new THREE.CircleGeometry(0.062,24),CM.cleanGlass,0.222,0.58,0).rotateY(Math.PI/2));
+    inst.add(mesh(rbox(0.03,0.17,0.14,0.01),CM.screen,-0.16,0.32,0));
+    inst.add(mesh(cyl(0.013,0.013,0.2,10),CM.alu,0,0.78,0));
+    const rov=mesh(cyl(0.03,0.03,3.6,12),CM.bodyDark,1.8,1.8,0.7);g.add(rov);
+    g.add(mesh(cyl(0.19,0.22,0.12,24),CM.bodyWhite,1.8,3.66,0.7));
+    const rled=mesh(new THREE.SphereGeometry(0.035,10,10),glowCyan(4),1.8,3.74,0.7);g.add(rled);
+    const prism=mesh(new THREE.OctahedronGeometry(0.15),glowCyan(3),3.3,0.85,-1.3);g.add(prism);
+    g.add(mesh(cyl(0.018,0.018,0.85,10),CM.alu,3.3,0.42,-1.3));
+    const laser=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0.22,3.12,0),new V(3.3,0.85,-1.3)]),new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:.5}));g.add(laser);
+    g.scale.setScalar(1.3);
+    g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+    updaters.push(t=>{laser.material.opacity=.35+.25*Math.sin(t*4);prism.rotation.y=t*0.6;rled.material.emissiveIntensity=2+2*(Math.sin(t*3)>0?1:0);});
   }
-  // ---- 1 Fiber Network Design ---- (real cabinet + glowing laterals)
+  // ---- 1 Fiber Network Design ---- fiber cabinet (hero) + splice closure + glowing splices to nodes
   { const px=STOP[1].x,pz=STOP[1].z; const g=grp(px,pz); scene.add(g);
-    scene.add(place(G.utilbox,{x:px,z:pz,ry:0.2,targetH:1.7}));
-    scene.add(place(G.utilbox2,{x:px-1.9,z:pz-0.3,ry:0.35,targetH:1.5})); // second distribution cabinet
-    scene.add(place(G.barrel,{x:px+2.4,z:pz-1.2,ry:0}));
-    scene.add(place(G.cementbag,{x:px-3,z:pz+1.6,ry:0.4,targetH:0.35}));
-    const led=mesh(new THREE.SphereGeometry(0.05,8,8),glowCyan(4),px+0.2,1.7,pz+0.55);scene.add(led);
-    const src=new V(px,1.0,pz+0.5); const nodes=[];
-    [[-6,3],[-2.5,4.5],[3,4],[6.5,2.5],[9,5]].forEach((d,i)=>{const tp=new V(px+d[0],0.06,pz+d[1]);const nd=mesh(cyl(0.22,0.26,0.12,20),glowCyan(1.4),tp.x,0.06,tp.z);scene.add(nd);nodes.push(nd);const cv=new THREE.CatmullRomCurve3([src,new V((src.x+tp.x)/2,0.9,(src.z+tp.z)/2),new V(tp.x,0.14,tp.z)]);scene.add(new THREE.Mesh(new THREE.TubeGeometry(cv,30,0.028,6,false),glowCyan(2.2)));});
-    updaters.push(t=>{led.material.emissiveIntensity=2+2*Math.abs(Math.sin(t*2));nodes.forEach((n,i)=>{n.material.emissiveIntensity=1+2.4*Math.max(0,Math.sin(t*1.5-i*0.9));});});
+    const cab=grp(0.6,0.2);g.add(cab);
+    cab.add(mesh(rbox(1.5,0.14,1.0,0.04),CM.bodyDark,0,0.09,0));
+    cab.add(mesh(rbox(1.4,1.9,0.9,0.05),CM.draftech,0,1.15,0));
+    for(let i=0;i<5;i++)cab.add(mesh(rbox(1.0,0.035,0.02,0.01),CM.bodyGrey,0,0.7+i*0.16,0.455));
+    cab.add(mesh(new THREE.PlaneGeometry(0.72,0.16),M.led,0,1.92,0.456));
+    const dled=mesh(new THREE.SphereGeometry(0.03,10,10),glowCyan(4),0.56,1.97,0.456);cab.add(dled);
+    cab.add(mesh(rbox(0.02,1.5,0.72,0.005),CM.bodyGrey,0.71,1.15,0));
+    const clo=grp(-1.9,-0.1);g.add(clo);
+    clo.add(mesh(rbox(0.5,0.5,0.4,0.04),CM.bodyDark,0,0.45,0));
+    clo.add(mesh(cyl(0.16,0.18,0.7,24),CM.bodyWhite,0,1.0,0));
+    clo.add(mesh(new THREE.SphereGeometry(0.18,20,12,0,6.28,0,1.57),CM.bodyWhite,0,1.35,0));
+    clo.add(mesh(new THREE.SphereGeometry(0.03,10,10),glowCyan(3.5),0,1.05,0.18));
+    const src=new V(0.6,1.05,0.45); const nodes=[];
+    [[-6,3.2],[-2.8,4.4],[3,4],[6.4,2.6],[9,4.6]].forEach((d,i)=>{const tp=new V(d[0],0.06,d[1]);const nd=mesh(cyl(0.2,0.24,0.1,20),glowCyan(1.4),tp.x,0.06,tp.z);g.add(nd);nodes.push(nd);const cv=new THREE.CatmullRomCurve3([src,new V((src.x+tp.x)/2,0.85,(src.z+tp.z)/2),new V(tp.x,0.12,tp.z)]);g.add(new THREE.Mesh(new THREE.TubeGeometry(cv,30,0.026,6,false),glowCyan(2.2)));});
+    g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+    updaters.push(t=>{dled.material.emissiveIntensity=2+2*Math.abs(Math.sin(t*2));nodes.forEach((n,i)=>{n.material.emissiveIntensity=1+2.4*Math.max(0,Math.sin(t*1.5-i*0.9));});});
   }
-  // ---- 2 OSP Engineering ---- (real transformer pole + cabinet + manhole)
-  { const px=STOP[2].x,pz=STOP[2].z;
-    scene.add(place(POLE_XFMR,{x:px-1,z:pz-1,ry:0.4,targetH:10.5}));
-    scene.add(place(G.powerbox,{x:px+3,z:pz+1.2,ry:-0.3,targetH:1.5}));
-    scene.add(place(G.manhole,{x:px+1.2,z:pz+ROFF-0.5,ry:0,targetH:0.25}));
-    scene.add(place(G.ladder,{x:px-2.2,z:pz-0.2,ry:0.3,targetH:3.2}));   // ladder leaning at the pole
-    scene.add(place(G.toolbox,{x:px+1.4,z:pz+2.6,ry:-0.4,targetH:0.42}));
-    scene.add(place(G.barrel,{x:px+2.9,z:pz+3,ry:0}));
-    const led=mesh(new THREE.SphereGeometry(0.05,8,8),glowCyan(4),px+3,1.5,pz+1.75);scene.add(led);
-    updaters.push(t=>{led.material.emissiveIntensity=1.5+2.2*Math.pow(Math.max(0,Math.sin(t*2.2)),6);});
+  // ---- 2 OSP Engineering ---- real joint-use pole (hero) + clean handhole + fiber pedestal + fiber drop
+  { const px=STOP[2].x,pz=STOP[2].z; const g=grp(px,pz); scene.add(g);
+    scene.add(place(POLE_XFMR,{x:px-0.5,z:pz-0.5,ry:0.3,targetH:10.5}));
+    const hh=grp(1.4,ROFF-1.8);g.add(hh);
+    hh.add(mesh(rbox(1.5,0.5,1.1,0.03),CM.cleanConc,0,-0.24,0));
+    hh.add(mesh(rbox(1.24,0.42,0.86,0.02),CM.bodyDark,0,-0.22,0));
+    for(const dx of[-0.35,0,0.35])hh.add(mesh(cyl(0.09,0.09,0.3,14),CM.bodyGrey,dx,-0.18,-0.3).rotateX(Math.PI/2));
+    hh.add(mesh(rbox(0.92,0.06,0.92,0.02),CM.cleanConc,0.95,0.03,0).rotateZ(0.22));
+    const ped=grp(3.2,1.3);g.add(ped);
+    ped.add(mesh(rbox(1.0,0.12,0.8,0.03),CM.bodyDark,0,0.08,0));
+    ped.add(mesh(rbox(0.9,1.3,0.7,0.05),CM.bodyGrey,0,0.72,0));
+    for(let i=0;i<4;i++)ped.add(mesh(rbox(0.6,0.03,0.02,0.01),CM.bodyDark,0,0.5+i*0.18,0.36));
+    const pled=mesh(new THREE.SphereGeometry(0.03,10,10),glowCyan(4),0.3,1.25,0.36);ped.add(pled);
+    const drop=new THREE.CatmullRomCurve3([new V(0.6,5.1,ROFF-1.5),new V(1.1,2.4,ROFF-1.7),new V(1.4,0.15,ROFF-1.8)]);
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(drop,22,0.03,6,false),fiberCore));
+    g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+    updaters.push(t=>{pled.material.emissiveIntensity=1.5+2.2*Math.pow(Math.max(0,Math.sin(t*2.2)),6);});
   }
-  // ---- 3 Permitting ---- (real barriers + generator + cones + sign)
+  // ---- 3 Permitting & Regulatory ---- permit board/plan-set (hero) + review table + clean delineators
   { const px=STOP[3].x,pz=STOP[3].z; const g=grp(px,pz);scene.add(g);
-    [-1.8,-0.2,1.4].forEach(dx=>scene.add(place(G.barrier,{x:px+dx,z:pz+ROFF-1,ry:0})));       // barriers on route/far side
-    scene.add(place(G.generator,{x:px+4.6,z:pz+ROFF+1.4,ry:0.4}));                              // generator camera-side
-    scene.add(place(G.chainfence,{x:px-3.4,z:pz+ROFF+1,ry:0,targetH:1.85}));                    // work-zone fence boundary
-    scene.add(place(G.toolbox,{x:px+3.4,z:pz+ROFF+3.4,ry:0.3,targetH:0.42}));
-    [[-1.2,2.4],[0.2,3.2],[1.6,2.6],[3.0,3.4]].forEach(c=>{const cg=grp(c[0],ROFF+c[1]);g.add(cg);cg.add(mesh(cyl(0.02,0.3,0.66,18),M.orange,0,0.33,0));cg.add(mesh(new THREE.BoxGeometry(0.55,0.03,0.55),M.orange,0,0.02,0));cg.add(mesh(cyl(0.18,0.22,0.1,18),M.whiteBand,0,0.37,0));});
-    const sp=grp(2.4,ROFF+2.2);sp.rotation.y=0.3;g.add(sp);for(const sx of[-0.78,0.78])sp.add(mesh(cyl(0.05,0.05,2.4,10),M.steelDark,sx,1.2,0));sp.add(mesh(new THREE.PlaneGeometry(2,2),M.sign,0,2.1,0.06));
-    const flash=mesh(new THREE.SphereGeometry(0.1,12,10),M.amber,1.4,1.15,ROFF-1);g.add(flash);
+    const sp=grp(1.2,ROFF-1.8);sp.rotation.y=0.12;g.add(sp);
+    for(const sx of[-0.85,0.85])sp.add(mesh(cyl(0.05,0.05,2.6,14),CM.bodyGrey,sx,1.3,0));
+    sp.add(mesh(rbox(2.1,1.7,0.08,0.03),CM.bodyWhite,0,2.25,0));
+    sp.add(mesh(new THREE.PlaneGeometry(1.95,1.55),M.sign,0,2.25,0.05));
+    const tb=grp(-2.4,ROFF-2.6);tb.rotation.y=0.3;g.add(tb);
+    tb.add(mesh(rbox(1.6,0.07,0.9,0.02),CM.bodyGrey,0,0.95,0));
+    for(const[ex,ez]of[[-0.7,-0.35],[0.7,-0.35],[-0.7,0.35],[0.7,0.35]])tb.add(mesh(cyl(0.03,0.03,0.95,10),CM.alu,ex,0.475,ez));
+    tb.add(mesh(new THREE.PlaneGeometry(0.68,0.48),M.plan,0.1,0.995,0).rotateX(-Math.PI/2));
+    [[-1.3,2.6],[0.1,3.2],[1.5,2.7]].forEach(c=>{const cg=grp(c[0],ROFF-c[1]);g.add(cg);cg.add(mesh(cyl(0.02,0.26,0.62,20),CM.orange,0,0.33,0));cg.add(mesh(rbox(0.5,0.04,0.5,0.01),CM.orange,0,0.03,0));cg.add(mesh(cyl(0.17,0.2,0.09,20),CM.bodyWhite,0,0.36,0));});
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-    updaters.push(t=>{flash.material.emissiveIntensity=(Math.sin(t*3.5)>0.4)?3:0.2;});
   }
-  // ---- 4 Wireless ---- (procedural tower + real base cabinet + real pole)
+  // ---- 4 Wireless Engineering ---- clean galvanized monopole (hero) + clean equipment cabinet + RRUs
   { const px=STOP[4].x,pz=STOP[4].z; scene.add(tower(px,pz));
-    scene.add(place(G.powerbox,{x:px+2.6,z:pz+1.8,ry:-0.2,targetH:1.5}));
-    scene.add(place(G.utilbox2,{x:px+3.9,z:pz+2.5,ry:-0.3,targetH:1.5}));  // second equipment cabinet
-    scene.add(place(G.barrel,{x:px-2.7,z:pz+2.3,ry:0}));
-    [[-4.2,-3.6],[0,-3.9],[4.2,-3.6]].forEach(f=>scene.add(place(G.chainfence,{x:px+f[0],z:pz+f[1],ry:0,targetH:1.95}))); // compound fence
+    const cab=grp(px+2.8,pz+1.9);scene.add(cab);
+    cab.add(mesh(rbox(1.2,0.12,0.8,0.03),CM.bodyDark,0,0.1,0));
+    cab.add(mesh(rbox(1.1,1.5,0.7,0.05),CM.bodyGrey,0,0.9,0));
+    for(let i=0;i<4;i++)cab.add(mesh(rbox(0.7,0.03,0.02,0.01),CM.bodyDark,0,0.6+i*0.2,0.36));
+    const wled=mesh(new THREE.SphereGeometry(0.03,10,10),glowCyan(4),0.35,1.45,0.36);cab.add(wled);
+    [[px-2.8,pz+2.0,0.32],[px-2.3,pz+2.3,0.86]].forEach(r=>scene.add(mesh(rbox(0.4,0.62,0.22,0.03),CM.bodyWhite,r[0],r[2]+0.3,r[1])));
+    updaters.push(t=>{wled.material.emissiveIntensity=1.5+2.2*Math.pow(Math.max(0,Math.sin(t*2.4)),6);});
   }
-  // ---- 5 CAD / As-Built ---- (real desk + monitors + plan sheet)
+  // ---- 5 CAD / GIS & As-Built ---- as-built plan (hero) + clean workstation + plotter
   { const px=STOP[5].x,pz=STOP[5].z; const g=grp(px,pz);scene.add(g);
-    const plinth=mesh(new THREE.BoxGeometry(7.4,0.4,5.4),M.steelDark,0,0.2,ROFF-1);g.add(plinth);
-    const sheet=mesh(new THREE.PlaneGeometry(7,5),M.plan,0,0.41,ROFF-1);sheet.rotation.x=-Math.PI/2;g.add(sheet);
-    const sweep=mesh(new THREE.PlaneGeometry(0.06,5),glowCyan(3),-3.4,0.42,ROFF-1);sweep.rotation.x=-Math.PI/2;g.add(sweep);
-    scene.add(place(G.desk,{x:px+4.8,z:pz+ROFF+1,ry:-1.5,targetH:1.05}));
-    scene.add(place(G.drawer,{x:px+6.7,z:pz+ROFF+1.7,ry:-1.5,targetH:1.1})); // filing cabinet
-    const mon=grp(4.8,ROFF+1);g.add(mon);mon.add(mesh(new THREE.BoxGeometry(1.4,0.85,0.05),M.black,0,1.55,-0.25));mon.add(mesh(new THREE.PlaneGeometry(1.3,0.75),M.plan,0,1.55,-0.22));
+    const plinth=mesh(rbox(6.4,0.4,4.6,0.05),CM.bodyDark,0,0.2,ROFF-1.5);g.add(plinth);
+    const sheet=mesh(new THREE.PlaneGeometry(6,4.2),M.plan,0,0.41,ROFF-1.5);sheet.rotation.x=-Math.PI/2;g.add(sheet);
+    const sweep=mesh(new THREE.PlaneGeometry(0.05,4.2),glowCyan(3),-2.9,0.42,ROFF-1.5);sweep.rotation.x=-Math.PI/2;g.add(sweep);
+    const desk=grp(4.7,ROFF+1.2);desk.rotation.y=-1.4;g.add(desk);
+    desk.add(mesh(rbox(2.4,0.06,1.0,0.02),CM.bodyWhite,0,1.0,0));
+    desk.add(mesh(rbox(0.06,1.0,0.9,0.02),CM.alu,-1.1,0.5,0)); desk.add(mesh(rbox(0.06,1.0,0.9,0.02),CM.alu,1.1,0.5,0));
+    for(const mx of[-0.62,0.62]){ desk.add(mesh(rbox(1.1,0.66,0.04,0.02),CM.bodyDark,mx,1.7,-0.28)); desk.add(mesh(new THREE.PlaneGeometry(1.02,0.58),M.plan,mx,1.7,-0.258)); desk.add(mesh(cyl(0.14,0.18,0.42,16),CM.bodyDark,mx,1.36,-0.28)); }
+    const plt=grp(6.9,ROFF+1.5);plt.rotation.y=-1.4;g.add(plt);
+    plt.add(mesh(rbox(1.6,0.5,0.6,0.04),CM.bodyGrey,0,1.05,0));
+    for(const[ex,ez]of[[-0.6,0.25],[0.6,0.25],[-0.6,-0.25],[0.6,-0.25]])plt.add(mesh(cyl(0.03,0.03,0.85,10),CM.alu,ex,0.42,ez));
+    plt.add(mesh(new THREE.PlaneGeometry(1.3,0.4),M.plan,0,1.28,0.28).rotateX(-1.25));
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-    updaters.push(t=>{sweep.position.x=-3.4+((t*0.9)%1)*6.8;sheet.material.emissiveIntensity=0.6+0.25*Math.sin(t*1.5);});
+    updaters.push(t=>{sweep.position.x=-2.9+((t*0.9)%1)*5.8;sheet.material.emissiveIntensity=0.6+0.25*Math.sin(t*1.5);});
   }
 }
 
 /* ---------- post ---------- */
 let composer,bloom;
-function buildComposer(){const dpr=renderer.getPixelRatio(),w=innerWidth*dpr|0,h=innerHeight*dpr|0;composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType,samples:4}));composer.setSize(innerWidth,innerHeight);composer.addPass(new RenderPass(scene,camera));bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.5,0.62,0.82);composer.addPass(bloom);composer.addPass(new SMAAPass(w,h));composer.addPass(new OutputPass());}
+function buildComposer(){const dpr=renderer.getPixelRatio(),w=innerWidth*dpr|0,h=innerHeight*dpr|0;composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType,samples:4}));composer.setSize(innerWidth,innerHeight);composer.addPass(new RenderPass(scene,camera));bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.42,0.6,0.85);composer.addPass(bloom);composer.addPass(new SMAAPass(w,h));composer.addPass(new OutputPass());}
 
 /* ---------- camera keyframes ---------- */
 function kf(stop,{back,side,up,lookB=4,lookH=2}){return {pos:new V(stop.x-side,up,stop.z+ROFF+back),look:new V(stop.x+lookB,lookH,stop.z)};}
@@ -381,15 +411,14 @@ function setCaption(idx){ if(idx===lastPh)return; lastPh=idx;
   railR.forEach((r,i)=>r.classList.toggle('on',i===idx)); }
 const tmpP=new V(),tmpL=new V(),curL=new V().copy(KEY[0].look); let frame=0;
 // responsive framing: narrower/portrait viewports pull the camera back + widen FOV so subjects fit and don't collide with copy
-let framing={dist:1};
-function computeFraming(){const a=innerWidth/innerHeight; framing.dist = a<0.68?1.98 : a<0.85?1.64 : a<1.05?1.36 : a<1.4?1.12 : 1.0; camera.fov = a<0.85?54 : a<1.4?44 : 40; camera.updateProjectionMatrix();}
+// desktop framing is EXACTLY the earlier camera (FOV 40, no pull-back); only true portrait widens FOV so mobile fits
+function computeFraming(){const a=innerWidth/innerHeight; camera.fov = a<0.7?52 : a<0.95?46 : 40; camera.updateProjectionMatrix();}
 computeFraming();
 function updateCamera(){
   curP+=(targetP-curP)*0.08;
   const seg=curP*(KEY.length-1); const i=clamp(Math.floor(seg),0,KEY.length-2); const f=smooth(seg-i);
   tmpP.lerpVectors(KEY[i].pos,KEY[i+1].pos,f); tmpL.lerpVectors(KEY[i].look,KEY[i+1].look,f);
-  camera.position.copy(tmpL).addScaledVector(tmpP.sub(tmpL), framing.dist);
-  camera.position.y+=Math.sin(frame*0.006)*0.05;
+  camera.position.copy(tmpP); camera.position.y+=Math.sin(frame*0.006)*0.05;
   curL.lerp(tmpL,0.15); camera.lookAt(curL);
   setCaption(clamp(Math.round(seg)-1,-1,5));
   hintEl.style.opacity=curP<0.04?'1':'0';
