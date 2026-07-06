@@ -53,6 +53,17 @@
   #rail .r.on{opacity:1;}#rail .r.on .pt{background:var(--cy);border-color:var(--cy);box-shadow:0 0 12px 2px rgba(0,229,255,.7);}
   #rail .r.on .lab{opacity:1;transform:none;color:var(--ink);}
   @media(max-width:820px){#rail{display:none}}
+  /* mobile / portrait: full-width bottom copy, bottom scrim, smaller type */
+  @media(max-width:760px){
+    #scrimL{background:linear-gradient(0deg,rgba(4,5,11,.92) 0%,rgba(4,5,11,.6) 24%,rgba(4,5,11,.12) 46%,transparent 62%);}
+    #hero{left:0;right:0;max-width:none;padding:0 22px;bottom:11vh;}
+    #hero h1{font-size:clamp(38px,12.5vw,76px);}
+    #hero p{max-width:none;font-size:15px;}
+    #cap{left:0;right:0;max-width:none;padding:0 22px;bottom:10vh;}
+    #cap h2{font-size:clamp(26px,7.5vw,42px);}
+    #cap p{max-width:none;font-size:14px;}
+    .scrollhint{bottom:14px;}
+  }
   #end{position:relative;z-index:6;background:linear-gradient(180deg,rgba(5,7,12,.15),var(--bg) 24%,var(--bg));text-align:center;padding:clamp(90px,16vh,180px) 24px clamp(70px,10vh,110px);}
   #end h2{font-family:'Montserrat';font-weight:800;font-size:clamp(30px,5vw,64px);line-height:1.02;letter-spacing:-.02em;}
   #end p{color:var(--dim);margin:20px auto 40px;max-width:520px;font-weight:300;font-size:17px;}
@@ -111,7 +122,7 @@ const renderer=new THREE.WebGLRenderer({canvas:c,antialias:true,powerPreference:
 renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0;
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-const scene=new THREE.Scene(); scene.background=new THREE.Color(0x070a12); scene.fog=new THREE.FogExp2(0x080b14,0.011);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x070a12); scene.fog=new THREE.FogExp2(0x080b14,0.009);
 const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.1,700);
 
 /* ---------- procedural textures (ground + effects only) ---------- */
@@ -160,14 +171,11 @@ const ground=mesh(new THREE.PlaneGeometry(900,900),M.asphalt); ground.rotation.x
 /* ---------- route ---------- */
 const STOP=[ new V(0,0,0), new V(30,0,-5), new V(60,0,4), new V(92,0,-4), new V(126,0,5), new V(160,0,0) ];
 const ROFF=7;
-const routePts=[ new V(-34,0,ROFF+4) ]; STOP.forEach(s=>routePts.push(new V(s.x,0,s.z+ROFF))); routePts.push(new V(200,0,ROFF+2));
-const curve=new THREE.CatmullRomCurve3(routePts,false,'catmullrom',0.35);
-const fiberH=0.55;
-const sheath=new THREE.Mesh(new THREE.TubeGeometry(curve,700,0.12,12,false),new THREE.MeshStandardMaterial({color:0x0b1a22,roughness:.5,metalness:.3,envMapIntensity:.6})); sheath.position.y=fiberH; scene.add(sheath);
-const core=new THREE.Mesh(new THREE.TubeGeometry(curve,700,0.07,10,false),fiberCore); core.position.y=fiberH; scene.add(core);
-STOP.forEach(s=>{const p=mesh(new THREE.PlaneGeometry(26,9),M.concrete,s.x,0.012,s.z+ROFF);p.rotation.x=-Math.PI/2;scene.add(p);});
-const pulse=new THREE.Mesh(new THREE.SphereGeometry(0.24,16,16),new THREE.MeshBasicMaterial({color:0xe6fdff}));
-const pulseLight=new THREE.PointLight(0x25e8ff,3,12); scene.add(pulse,pulseLight);
+// The LIT fiber route is the lowest AERIAL cable strung pole-to-pole (built in buildWorld → routeCurve); a current pulse travels it.
+let routeCurve=null;
+const cpad=mesh(new THREE.PlaneGeometry(280,24),M.concrete,86,0.012,ROFF-1); cpad.rotation.x=-Math.PI/2; scene.add(cpad); // continuous corridor pad
+const pulse=new THREE.Mesh(new THREE.SphereGeometry(0.17,16,16),new THREE.MeshBasicMaterial({color:0xe6fdff}));
+const pulseLight=new THREE.PointLight(0x25e8ff,4,14); scene.add(pulse,pulseLight);
 
 /* ---------- model loading ---------- */
 const MODELS={
@@ -179,6 +187,13 @@ const MODELS={
   manhole:'models/water_manhole_cover/water_manhole_cover_1k.gltf',
   desk:'models/metal_office_desk/metal_office_desk_1k.gltf',
   lamp:'models/street_lamp_01/street_lamp_01_1k.gltf',
+  chainfence:'models/modular_chainlink_fence/modular_chainlink_fence_1k.gltf',
+  toolbox:'models/metal_toolbox/metal_toolbox_1k.gltf',
+  barrel:'models/barrel_03/barrel_03_1k.gltf',
+  ladder:'models/wooden_ladder/wooden_ladder_1k.gltf',
+  cementbag:'models/cement_bag/cement_bag_1k.gltf',
+  drawer:'models/drawer_cabinet/drawer_cabinet_1k.gltf',
+  utilbox2:'models/utility_box_02/utility_box_02_1k.gltf',
 };
 const G={}, updaters=[];
 const manager=new THREE.LoadingManager();
@@ -208,6 +223,8 @@ function buildPreset(kit,prefix){
   g.children.forEach(c=>{c.position.x-=ctr.x;c.position.z-=ctr.z;c.position.y-=box.min.y;});
   return g;
 }
+// sagging cable points between two attachment points
+function catenary(a,b,sag,seg=14){const pts=[];for(let i=0;i<=seg;i++){const t=i/seg;pts.push(new V(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t-sag*Math.sin(Math.PI*t),a.z+(b.z-a.z)*t));}return pts;}
 
 /* ---------- procedural cell tower (kept — reads as real galvanized steel) ---------- */
 function tower(px,pz){const g=grp(px,pz);
@@ -234,9 +251,18 @@ function buildWorld(){
   POLE_XFMR=buildPreset(G.poles,'preset_01_');  // pole WITH transformer/fuses
   POLE_TALL=buildPreset(G.poles,'preset_02_');  // cleaner distribution pole
 
-  // ---- corridor poles (right side, following the route) + street lamps ----
-  [-24,15,46,76,109,143,188].forEach((x,i)=>scene.add(corridorPole(x,STOP.length?ROFF+1:8, i%2?0.3:-0.2)));
-  [15,109,178].forEach(x=>scene.add(place(G.lamp,{x,z:ROFF+2.5,ry:-Math.PI/2,targetH:8})));
+  // ---- POLE LINE (right) strung with conductors; the LOWEST line is the LIT fiber + traveling current ----
+  const poleZof = x => ROFF + 2 + Math.sin(x*0.014)*2.0;
+  const line=[];
+  for(let x=-22;x<=214;x+=26){ const z=poleZof(x); scene.add(place(line.length%3===1?POLE_XFMR:POLE_TALL,{x,z,ry:-1.571,targetH:9.6})); line.push(new V(x,0,z)); }
+  [4,82,160].forEach(x=>scene.add(place(G.lamp,{x,z:poleZof(x)+2.6,ry:-1.571,targetH:8})));
+  const TOPY=8.3, COMMY=5.7;
+  for(let i=0;i<line.length-1;i++){
+    for(const zo of [-0.85,0,0.85]){ const p=catenary(new V(line[i].x,TOPY,line[i].z+zo),new V(line[i+1].x,TOPY,line[i+1].z+zo),0.5,14); scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p),14,0.025,6,false),M.black)); }
+  }
+  const commPts=[]; for(let i=0;i<line.length-1;i++){ const s=catenary(new V(line[i].x,COMMY,line[i].z+0.3),new V(line[i+1].x,COMMY,line[i+1].z+0.3),0.7,16); if(i>0)s.shift(); commPts.push(...s); }
+  routeCurve=new THREE.CatmullRomCurve3(commPts);
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(routeCurve, commPts.length*3, 0.05, 8, false), fiberCore)); // the lit fiber line
 
   // per-station warm key light so subjects read
   STOP.forEach(s=>{const k=new THREE.PointLight(0xffceA0,62,46,2);k.position.set(s.x-3,6,s.z+4);scene.add(k);});
@@ -257,12 +283,16 @@ function buildWorld(){
     const laser=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0.21,3.06,0),new V(4,0.9,-1.2)]),new THREE.LineBasicMaterial({color:0x00e5ff,transparent:true,opacity:.5}));g.add(laser);
     g.scale.setScalar(1.2);
     scene.add(place(G.generator,{x:px+2.6,z:pz+3.4,ry:-0.5}));           // real field generator
-    scene.add(place(POLE_XFMR,{x:px-6,z:pz+ROFF,ry:0.1,targetH:9.5}));   // real pole behind
+    scene.add(place(G.toolbox,{x:px+1.5,z:pz+1.5,ry:0.6,targetH:0.42})); // field toolbox
+    scene.add(place(G.barrel,{x:px-1.7,z:pz+2.9,ry:0}));                 // barrel
     updaters.push(t=>{laser.material.opacity=.35+.25*Math.sin(t*4);prism.rotation.y=t*0.6;});
   }
   // ---- 1 Fiber Network Design ---- (real cabinet + glowing laterals)
   { const px=STOP[1].x,pz=STOP[1].z; const g=grp(px,pz); scene.add(g);
     scene.add(place(G.utilbox,{x:px,z:pz,ry:0.2,targetH:1.7}));
+    scene.add(place(G.utilbox2,{x:px-1.9,z:pz-0.3,ry:0.35,targetH:1.5})); // second distribution cabinet
+    scene.add(place(G.barrel,{x:px+2.4,z:pz-1.2,ry:0}));
+    scene.add(place(G.cementbag,{x:px-3,z:pz+1.6,ry:0.4,targetH:0.35}));
     const led=mesh(new THREE.SphereGeometry(0.05,8,8),glowCyan(4),px+0.2,1.7,pz+0.55);scene.add(led);
     const src=new V(px,1.0,pz+0.5); const nodes=[];
     [[-6,3],[-2.5,4.5],[3,4],[6.5,2.5],[9,5]].forEach((d,i)=>{const tp=new V(px+d[0],0.06,pz+d[1]);const nd=mesh(cyl(0.22,0.26,0.12,20),glowCyan(1.4),tp.x,0.06,tp.z);scene.add(nd);nodes.push(nd);const cv=new THREE.CatmullRomCurve3([src,new V((src.x+tp.x)/2,0.9,(src.z+tp.z)/2),new V(tp.x,0.14,tp.z)]);scene.add(new THREE.Mesh(new THREE.TubeGeometry(cv,30,0.028,6,false),glowCyan(2.2)));});
@@ -273,6 +303,9 @@ function buildWorld(){
     scene.add(place(POLE_XFMR,{x:px-1,z:pz-1,ry:0.4,targetH:10.5}));
     scene.add(place(G.powerbox,{x:px+3,z:pz+1.2,ry:-0.3,targetH:1.5}));
     scene.add(place(G.manhole,{x:px+1.2,z:pz+ROFF-0.5,ry:0,targetH:0.25}));
+    scene.add(place(G.ladder,{x:px-2.2,z:pz-0.2,ry:0.3,targetH:3.2}));   // ladder leaning at the pole
+    scene.add(place(G.toolbox,{x:px+1.4,z:pz+2.6,ry:-0.4,targetH:0.42}));
+    scene.add(place(G.barrel,{x:px+2.9,z:pz+3,ry:0}));
     const led=mesh(new THREE.SphereGeometry(0.05,8,8),glowCyan(4),px+3,1.5,pz+1.75);scene.add(led);
     updaters.push(t=>{led.material.emissiveIntensity=1.5+2.2*Math.pow(Math.max(0,Math.sin(t*2.2)),6);});
   }
@@ -280,6 +313,8 @@ function buildWorld(){
   { const px=STOP[3].x,pz=STOP[3].z; const g=grp(px,pz);scene.add(g);
     [-1.8,-0.2,1.4].forEach(dx=>scene.add(place(G.barrier,{x:px+dx,z:pz+ROFF-1,ry:0})));       // barriers on route/far side
     scene.add(place(G.generator,{x:px+4.6,z:pz+ROFF+1.4,ry:0.4}));                              // generator camera-side
+    scene.add(place(G.chainfence,{x:px-3.4,z:pz+ROFF+1,ry:0,targetH:1.85}));                    // work-zone fence boundary
+    scene.add(place(G.toolbox,{x:px+3.4,z:pz+ROFF+3.4,ry:0.3,targetH:0.42}));
     [[-1.2,2.4],[0.2,3.2],[1.6,2.6],[3.0,3.4]].forEach(c=>{const cg=grp(c[0],ROFF+c[1]);g.add(cg);cg.add(mesh(cyl(0.02,0.3,0.66,18),M.orange,0,0.33,0));cg.add(mesh(new THREE.BoxGeometry(0.55,0.03,0.55),M.orange,0,0.02,0));cg.add(mesh(cyl(0.18,0.22,0.1,18),M.whiteBand,0,0.37,0));});
     const sp=grp(2.4,ROFF+2.2);sp.rotation.y=0.3;g.add(sp);for(const sx of[-0.78,0.78])sp.add(mesh(cyl(0.05,0.05,2.4,10),M.steelDark,sx,1.2,0));sp.add(mesh(new THREE.PlaneGeometry(2,2),M.sign,0,2.1,0.06));
     const flash=mesh(new THREE.SphereGeometry(0.1,12,10),M.amber,1.4,1.15,ROFF-1);g.add(flash);
@@ -289,7 +324,9 @@ function buildWorld(){
   // ---- 4 Wireless ---- (procedural tower + real base cabinet + real pole)
   { const px=STOP[4].x,pz=STOP[4].z; scene.add(tower(px,pz));
     scene.add(place(G.powerbox,{x:px+2.6,z:pz+1.8,ry:-0.2,targetH:1.5}));
-    scene.add(place(POLE_TALL,{x:px+9,z:pz+ROFF,ry:-0.2,targetH:9}));
+    scene.add(place(G.utilbox2,{x:px+3.9,z:pz+2.5,ry:-0.3,targetH:1.5}));  // second equipment cabinet
+    scene.add(place(G.barrel,{x:px-2.7,z:pz+2.3,ry:0}));
+    [[-4.2,-3.6],[0,-3.9],[4.2,-3.6]].forEach(f=>scene.add(place(G.chainfence,{x:px+f[0],z:pz+f[1],ry:0,targetH:1.95}))); // compound fence
   }
   // ---- 5 CAD / As-Built ---- (real desk + monitors + plan sheet)
   { const px=STOP[5].x,pz=STOP[5].z; const g=grp(px,pz);scene.add(g);
@@ -297,6 +334,7 @@ function buildWorld(){
     const sheet=mesh(new THREE.PlaneGeometry(7,5),M.plan,0,0.41,ROFF-1);sheet.rotation.x=-Math.PI/2;g.add(sheet);
     const sweep=mesh(new THREE.PlaneGeometry(0.06,5),glowCyan(3),-3.4,0.42,ROFF-1);sweep.rotation.x=-Math.PI/2;g.add(sweep);
     scene.add(place(G.desk,{x:px+4.8,z:pz+ROFF+1,ry:-1.5,targetH:1.05}));
+    scene.add(place(G.drawer,{x:px+6.7,z:pz+ROFF+1.7,ry:-1.5,targetH:1.1})); // filing cabinet
     const mon=grp(4.8,ROFF+1);g.add(mon);mon.add(mesh(new THREE.BoxGeometry(1.4,0.85,0.05),M.black,0,1.55,-0.25));mon.add(mesh(new THREE.PlaneGeometry(1.3,0.75),M.plan,0,1.55,-0.22));
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
     updaters.push(t=>{sweep.position.x=-3.4+((t*0.9)%1)*6.8;sheet.material.emissiveIntensity=0.6+0.25*Math.sin(t*1.5);});
@@ -342,24 +380,29 @@ function setCaption(idx){ if(idx===lastPh)return; lastPh=idx;
   else{heroEl.classList.remove('show');const p=PH[idx];cno.textContent=p.no;cey.textContent='Phase '+p.no+' / 06';ct.textContent=p.t;cd.textContent=p.d;capEl.classList.add('show');}
   railR.forEach((r,i)=>r.classList.toggle('on',i===idx)); }
 const tmpP=new V(),tmpL=new V(),curL=new V().copy(KEY[0].look); let frame=0;
+// responsive framing: narrower/portrait viewports pull the camera back + widen FOV so subjects fit and don't collide with copy
+let framing={dist:1};
+function computeFraming(){const a=innerWidth/innerHeight; framing.dist = a<0.68?1.98 : a<0.85?1.64 : a<1.05?1.36 : a<1.4?1.12 : 1.0; camera.fov = a<0.85?54 : a<1.4?44 : 40; camera.updateProjectionMatrix();}
+computeFraming();
 function updateCamera(){
   curP+=(targetP-curP)*0.08;
   const seg=curP*(KEY.length-1); const i=clamp(Math.floor(seg),0,KEY.length-2); const f=smooth(seg-i);
   tmpP.lerpVectors(KEY[i].pos,KEY[i+1].pos,f); tmpL.lerpVectors(KEY[i].look,KEY[i+1].look,f);
-  camera.position.copy(tmpP); camera.position.y+=Math.sin(frame*0.006)*0.05;
+  camera.position.copy(tmpL).addScaledVector(tmpP.sub(tmpL), framing.dist);
+  camera.position.y+=Math.sin(frame*0.006)*0.05;
   curL.lerp(tmpL,0.15); camera.lookAt(curL);
   setCaption(clamp(Math.round(seg)-1,-1,5));
   hintEl.style.opacity=curP<0.04?'1':'0';
 }
 /* ---------- loop ---------- */
 function animate(ts){requestAnimationFrame(animate); frame++; const t=(ts||0)/1000;
-  const tp=(t*0.05)%1;const pp=curve.getPointAt(tp);pp.y=fiberH;pulse.position.copy(pp);pulseLight.position.copy(pp);
+  if(routeCurve){const tp=(t*0.05)%1;const pp=routeCurve.getPointAt(tp);pulse.position.copy(pp);pulseLight.position.copy(pp);}
   for(const u of updaters)u(t);
   updateCamera();
   if(composer)composer.render();else renderer.render(scene,camera);
 }
 requestAnimationFrame(animate);
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer)composer.setSize(innerWidth,innerHeight);if(bloom)bloom.setSize(innerWidth,innerHeight);});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;computeFraming();renderer.setSize(innerWidth,innerHeight);if(composer)composer.setSize(innerWidth,innerHeight);if(bloom)bloom.setSize(innerWidth,innerHeight);});
 setTimeout(()=>{if(!window.__ready&&!window.__err)loader.classList.add('hide');},15000);
 </script>
 </body>
